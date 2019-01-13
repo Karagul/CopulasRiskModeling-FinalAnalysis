@@ -1,0 +1,179 @@
+---
+title: "FinalCode"
+output: html_document
+---
+
+```{r}
+require(mosaic)
+#install.packages("moments")
+library(moments)
+#install.packages("TTR")
+require(TTR)
+#install.packages("condmixt")
+require("condmixt")
+#install.packages("copula")
+require(copula)
+mydata <- read.csv("Return_dataset.csv", header=TRUE,as.is = T)
+TradingDays <- subset(mydata, Trades == 0)
+```
+
+##Generating Student's t Parameters for Stocks-Bonds, Stocks-RealEstate, Bonds-RealEstate
+```{r}
+set.seed(100)
+#Stocks and Bonds
+u <- pobs(as.matrix(cbind(TradingDays$Stocks,TradingDays$Bonds)))[,1]
+v <- pobs(as.matrix(cbind(TradingDays$Stocks,TradingDays$Bonds)))[,2]
+selectedCopula <- BiCopSelect(u,v,familyset=2) 
+rho1<- -0.1886762 #correlation parameter
+df1<- 7.243498 #degrees of freedom 
+
+#Stocks and RealEstate
+w <- pobs(as.matrix(cbind(TradingDays$Stocks,TradingDays$RealEstate)))[,1]
+x <- pobs(as.matrix(cbind(TradingDays$Stocks,TradingDays$RealEstate)))[,2]
+selectedCopula <- BiCopSelect(w,x,familyset=2) 
+rho2<- 0.4768359 #correlation parameter
+df2<- 10.93676 #degrees of freedom 
+
+#Bonds and RealEstate
+y <- pobs(as.matrix(cbind(TradingDays$Bonds,TradingDays$RealEstate)))[,1]
+z <- pobs(as.matrix(cbind(TradingDays$Bonds,TradingDays$RealEstate)))[,2]
+selectedCopula <- BiCopSelect(y,z,familyset=2) 
+rho3<- -0.07588851 #correlation parameter
+df3<- 14.13204 #degrees of freedom 
+```
+
+##Generating Gaussian Parameters for Stocks-Bonds, Stocks-RealEstate, Bonds-RealEstate
+#*Note: We are using t with original rho and 100 degrees of freedom to model Gaussian copula 
+```{r}
+set.seed(100)
+#Stocks and Bonds
+u <- pobs(as.matrix(cbind(TradingDays$Stocks,TradingDays$Bonds)))[,1]
+v <- pobs(as.matrix(cbind(TradingDays$Stocks,TradingDays$Bonds)))[,2]
+rho4<- -0.1886762 #correlation parameter
+df4<- 100 #degrees of freedom 
+
+#Stocks and RealEstate
+w <- pobs(as.matrix(cbind(TradingDays$Stocks,TradingDays$RealEstate)))[,1]
+x <- pobs(as.matrix(cbind(TradingDays$Stocks,TradingDays$RealEstate)))[,2]
+rho5<- 0.4768359 #correlation parameter
+df5<- 100 #degrees of freedom 
+
+#Bonds and RealEstate
+y <- pobs(as.matrix(cbind(TradingDays$Bonds,TradingDays$RealEstate)))[,1]
+z <- pobs(as.matrix(cbind(TradingDays$Bonds,TradingDays$RealEstate)))[,2]
+rho6<- -0.07588851 #correlation parameter
+df6<- 100 #degrees of freedom 
+```
+
+#Checking and Plotting correlations
+```{r}
+par(mfrow=c(1,3))
+#Stocks and Bonds
+attach(TradingDays)
+plot(Stocks,Bonds,pch='.')
+abline(lm(Bonds~Stocks),col='red',lwd=1)
+cor(Stocks,Bonds,method='spearman')
+
+#Stocks and RealEstate
+plot(Stocks,RealEstate,pch='.')
+abline(lm(RealEstate~Stocks),col='red',lwd=1)
+cor(Stocks,RealEstate,method='spearman')
+
+#Bonds and RealEstate 
+plot(Bonds,RealEstate,pch='.')
+abline(lm(RealEstate~Bonds),col='red',lwd=1)
+cor(Bonds,RealEstate,method='spearman')
+detach(TradingDays)
+```
+
+##Generating Perspective/Density plots 
+```{r}
+set.seed(100)
+par(mfrow=c(1,2))
+persp(tCopula(dim=2,rho1, df=df1),dCopula, main = "Student's(Stocks & Bonds)")
+persp(tCopula(dim=2,rho1, df=100),dCopula, main = "Gaussian (Stocks & Bonds)")
+
+persp(tCopula(dim=2,rho2, df=df2),dCopula, main = "Student's(Stocks & RealEstate)")
+persp(tCopula(dim=2,rho2, df=100),dCopula, main = "Gaussian (Stocks & RealEstate)")
+
+persp(tCopula(dim=2,rho3, df=df3),dCopula, main = "Student's(Bonds & RealEstate)")
+persp(tCopula(dim=2,rho3, df=100),dCopula, main = "Gaussian (Bonds & RealEstate)")
+```
+
+##Generating Marginal Distirbutions Plots
+```{r}
+attach(TradingDays)
+par(mfrow=c(1,3))
+Stocks_mu <- mean(Stocks)
+Stocks_sd <- sd(Stocks)
+Bonds_mu <- mean(Bonds)
+Bonds_sd <- sd(Bonds)
+RealEstate_mu <- mean(RealEstate)
+RealEstate_sd <- sd(RealEstate)
+
+#Plotting Stocks Returns
+hist(Stocks,breaks=80,main="",freq=F,density=30,col='cyan')
+lines(seq(-0.5,0.5,0.01),dnorm(seq(-0.5,0.5,0.01),Stocks_mu,Stocks_sd),col='red',lwd=2)
+
+#Plotting Bonds Returns
+hist(Bonds,breaks=80,freq=F,main="",density=30,col='cyan')
+lines(seq(-0.5,0.5,0.01),dnorm(seq(-0.5,0.5,0.01),Bonds_mu,Bonds_sd),col='red',lwd=2,main="Bonds")
+legend('topleft',c('Normal'),col=c('red'),lwd=2,cex =0.70)
+
+#Plotting RealEstate Returns
+hist(RealEstate,breaks=80,density=30,main="",col='cyan',freq=F)
+lines(seq(-0.5,0.5,0.01),dnorm(seq(-0.5,0.5,0.01),RealEstate_mu,RealEstate_sd),col='red',lwd=2,main="RealEstate")
+```
+
+##Generating Simulations and Overlay of Actual Returns
+#Stocks and Bonds (Gaussian and Student's t)
+```{r}
+set.seed(100)
+par(mfrow=c(1,2))
+copula_dist <- mvdc(copula=tCopula(rho1,dim=2,df=100), margins=c("norm","norm"),paramMargins=list(list(mean=Stocks_mu, sd=Stocks_sd),list(mean=Bonds_mu, sd=Bonds_sd)))
+sim <- rMvdc(5000, copula_dist) #simulated data
+plot(Stocks,Bonds,main='Returns Gaussian',pch=19)
+points(sim[,1],sim[,2],col='red',pch=16)
+legend('bottomleft',c('Observed ⍴s,b = -0.189 , dfs,b = 100','Simulated'),col=c('black','red'),pch=c(19,16),cex=0.50)
+
+copula_dist <- mvdc(copula=tCopula(rho1,dim=2,df=df1), margins=c("norm","norm"),paramMargins=list(list(mean=Stocks_mu, sd=Stocks_sd),list(mean=Bonds_mu, sd=Bonds_sd)))
+sim <- rMvdc(5000, copula_dist) #simulated data
+plot(Stocks,Bonds,main='Returns Students t',pch=19)
+points(sim[,1],sim[,2],col='red',pch=16)
+legend('bottomleft',c('Observed ⍴s,b = -0.189 , dfs,b = 7.24','Simulated'),col=c('black','red'),pch=c(19,16),cex=0.50)
+```
+
+#Stocks and RealEstate (Gaussian and Student's t)
+```{r}
+set.seed(100)
+par(mfrow=c(1,2))
+copula_dist <- mvdc(copula=tCopula(rho2,dim=2,df=100), margins=c("norm","norm"),paramMargins=list(list(mean=Stocks_mu, sd=Stocks_sd),list(mean=RealEstate_mu, sd=RealEstate_sd)))
+sim <- rMvdc(5000, copula_dist) #simulated data
+plot(Stocks,RealEstate,main='Returns Gaussian',pch=19)
+points(sim[,1],sim[,2],col='red',pch=16)
+legend('bottomleft',c('Observed ⍴s,r = 0.477 , dfs,r = 100','Simulated'),col=c('black','red'),pch=c(19,16),cex=0.50)
+
+copula_dist <- mvdc(copula=tCopula(rho2,dim=2,df=df2), margins=c("norm","norm"),paramMargins=list(list(mean=Stocks_mu, sd=Stocks_sd),list(mean=RealEstate_mu, sd=RealEstate_sd)))
+sim <- rMvdc(5000, copula_dist) #simulated data
+plot(Stocks,RealEstate,main='Returns Students t',pch=19)
+points(sim[,1],sim[,2],col='red',pch=16)
+legend('bottomleft',c('Observed ⍴s,r = 0.477 , dfs,r = 10.9','Simulated'),col=c('black','red'),pch=c(19,16),cex=0.50)
+```
+
+#Bonds and RealEstate (Gaussian and Student's t)
+```{r}
+set.seed(100)
+par(mfrow=c(1,2))
+copula_dist <- mvdc(copula=tCopula(rho3,dim=2,df=100), margins=c("norm","norm"),paramMargins=list(list(mean=Bonds_mu, sd=Bonds_sd),list(mean=RealEstate_mu, sd=RealEstate_sd)))
+sim <- rMvdc(5000, copula_dist) #simulated data
+plot(Bonds,RealEstate,main='Returns Gaussian',pch=19)
+points(sim[,1],sim[,2],col='red',pch=16)
+legend('bottomleft',c('Observed ⍴b,r = -0.0759 , dfb,r = 100','Simulated'),col=c('black','red'),pch=c(19,16),cex=0.50)
+
+copula_dist <- mvdc(copula=tCopula(rho3,dim=2,df=df3), margins=c("norm","norm"),paramMargins=list(list(mean=Bonds_mu, sd=Bonds_sd),list(mean=RealEstate_mu, sd=RealEstate_sd)))
+sim <- rMvdc(5000, copula_dist) #simulated data
+plot(Bonds,RealEstate,main='Returns Students t',pch=19)
+points(sim[,1],sim[,2],col='red',pch=16)
+legend('bottomleft',c('Observed ⍴b,r = -0.0759 , dfb,r = 14.1','Simulated'),col=c('black','red'),pch=c(19,16),cex=0.50)
+detach(TradingDays)
+```
